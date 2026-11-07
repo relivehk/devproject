@@ -1,0 +1,14 @@
+# секреты
+.env
+compose/app/.env
+compose/monitoring/.env
+
+# мусор
+*.log
+*.swp
+.DS_Store
+
+# dagger
+internal/
+dagger.gen.go
+.dagger/

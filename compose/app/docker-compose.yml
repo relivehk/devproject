@@ -1,0 +1,59 @@
+name: kuma-app
+
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+      MARIADB_EXPORTER_PASSWORD: ${MARIADB_EXPORTER_PASSWORD}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+      - ${HOST_PROJECT_DIR}/compose/app/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - kuma-net
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: uptime-kuma
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      UPTIME_KUMA_DB_TYPE: mariadb
+      UPTIME_KUMA_DB_HOSTNAME: mariadb
+      UPTIME_KUMA_DB_PORT: 3306
+      UPTIME_KUMA_DB_NAME: ${MARIADB_DATABASE}
+      UPTIME_KUMA_DB_USERNAME: ${MARIADB_USER}
+      UPTIME_KUMA_DB_PASSWORD: ${MARIADB_PASSWORD}
+    ports:
+      - "3001:3001"
+    volumes:
+      - kuma-data:/app/data
+    healthcheck:
+      test: ["CMD", "extra/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - kuma-net
+
+volumes:
+  mariadb-data:
+  kuma-data:
+
+networks:
+  kuma-net:
+    external: true
