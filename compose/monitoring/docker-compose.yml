@@ -66,7 +66,7 @@ services:
     privileged: true
     command:
       - --docker_only=true
-      - --housekeeping_interval=10s
+      - --housekeeping_interval=30s
       - --store_container_labels=false
     volumes:
       - /:/rootfs:ro

@@ -8,7 +8,4 @@ compose/monitoring/.env
 *.swp
 .DS_Store
 
-# dagger
-internal/
-dagger.gen.go
-.dagger/
+bin/
