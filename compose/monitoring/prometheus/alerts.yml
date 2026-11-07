@@ -1,0 +1,26 @@
+groups:
+  - name: kuma-stand
+    rules:
+      - alert: MariaDBDown
+        expr: mysql_up == 0
+        for: 30s
+        labels: {severity: critical}
+        annotations: {summary: "MariaDB недоступна"}
+
+      - alert: UptimeKumaDown
+        expr: probe_success{job="blackbox-kuma"} == 0
+        for: 30s
+        labels: {severity: critical}
+        annotations: {summary: "Uptime Kuma не отвечает по HTTP"}
+
+      - alert: ExporterDown
+        expr: up == 0
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: "Target {{ $labels.job }} не скрейпится"}
+
+      - alert: ContainerHighMemory
+        expr: container_memory_working_set_bytes{name=~"uptime-kuma|mariadb"} > 1e9
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "{{ $labels.name }} ест больше 1 ГБ"}

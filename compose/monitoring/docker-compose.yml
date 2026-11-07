@@ -1,0 +1,110 @@
+name: kuma-monitoring
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    volumes:
+      - ${HOST_PROJECT_DIR}/compose/monitoring/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [kuma-net]
+
+  grafana:
+    image: grafana/grafana:12.2.0
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks: [kuma-net]
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: node-exporter
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks: [kuma-net]
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.60.5
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=10s
+      - --store_container_labels=false
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    networks: [kuma-net]
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.17.2
+    container_name: mysqld-exporter
+    restart: unless-stopped
+    command:
+      - --config.my-cnf=/.my.cnf
+      - --mysqld.address=mariadb:3306
+    environment:
+      MYSQLD_EXPORTER_PASSWORD: ${MARIADB_EXPORTER_PASSWORD}
+    volumes:
+      - ${HOST_PROJECT_DIR}/compose/monitoring/mysqld-exporter/.my.cnf:/.my.cnf:ro
+    networks: [kuma-net]
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.27.0
+    container_name: blackbox-exporter
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/blackbox/blackbox.yml
+    volumes:
+      - ${HOST_PROJECT_DIR}/compose/monitoring/blackbox:/etc/blackbox:ro
+    networks: [kuma-net]
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  kuma-net:
+    external: true
